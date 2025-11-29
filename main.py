@@ -119,8 +119,8 @@ async def extract_bill_data(request: dict = Body(...)):
 
     # 3. Call Gemini 1.5 Flash
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
-        generation_config={"response_mime_type": "application/json"}
+       model_name="gemini-2.0-flash", # Updated to the model found in your list
+       generation_config={"response_mime_type": "application/json"}
     )
     
     # Prepare content: Text prompt + List of images
