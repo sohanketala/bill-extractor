@@ -119,7 +119,7 @@ async def extract_bill_data(request: dict = Body(...)):
 
     # 3. Call Gemini 1.5 Flash
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash-001",
+        model_name="gemini-1.5-flash",
         generation_config={"response_mime_type": "application/json"}
     )
     
