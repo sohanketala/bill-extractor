@@ -132,16 +132,22 @@ async def extract_bill_data(request: dict = Body(...)):
 
     try:
         response = model.generate_content(prompt_content)
+        usage = response.usage_metadata  # <--- ADD THIS LINE HERE!
         
         # Check if the model refused to answer (Safety Filters)
         if not response.parts:
-            raise ValueError(f"Model blocked the response. Finish Reason: {response.candidates[0].finish_reason}")
+            # If blocked, we can't get usage, so we raise an error
+            raise ValueError(f"Model blocked the response.")
 
-        # Clean the response (sometimes Gemini adds ```json ... ``` wrappers)
+        # Clean the response
         text_response = response.text.strip()
         if text_response.startswith("```"):
-            # Remove first and last lines (code fences)
-            text_response = "\n".join(text_response.split("\n")[1:-1])
+            lines = text_response.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            text_response = "\n".join(lines).strip()
 
         extracted_json = json.loads(text_response)
         
@@ -164,8 +170,7 @@ async def extract_bill_data(request: dict = Body(...)):
         )
 
     except Exception as e:
-        # --- CHANGED: Return the actual error message ---
-        print(f"ERROR: {str(e)}") # This will show in Render logs
+        print(f"ERROR: {str(e)}")
         return APIResponse(
             is_success=False,
             token_usage=TokenUsage(total_tokens=0, input_tokens=0, output_tokens=0),
