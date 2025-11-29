@@ -128,12 +128,22 @@ async def extract_bill_data(request: dict = Body(...)):
     for img in images:
         prompt_content.append(img)
     
+    # ... (keep the top part of the function the same)
+
     try:
         response = model.generate_content(prompt_content)
-        usage = response.usage_metadata
         
-        # Parse the JSON string from Gemini
-        extracted_json = json.loads(response.text)
+        # Check if the model refused to answer (Safety Filters)
+        if not response.parts:
+            raise ValueError(f"Model blocked the response. Finish Reason: {response.candidates[0].finish_reason}")
+
+        # Clean the response (sometimes Gemini adds ```json ... ``` wrappers)
+        text_response = response.text.strip()
+        if text_response.startswith("```"):
+            # Remove first and last lines (code fences)
+            text_response = "\n".join(text_response.split("\n")[1:-1])
+
+        extracted_json = json.loads(text_response)
         
         # Calculate total item count
         total_count = 0
@@ -154,11 +164,22 @@ async def extract_bill_data(request: dict = Body(...)):
         )
 
     except Exception as e:
-        # Fallback for errors
+        # --- CHANGED: Return the actual error message ---
+        print(f"ERROR: {str(e)}") # This will show in Render logs
         return APIResponse(
             is_success=False,
             token_usage=TokenUsage(total_tokens=0, input_tokens=0, output_tokens=0),
-            data=ResponseData(pagewise_line_items=[], total_item_count=0)
+            data=ResponseData(
+                # We inject the error message into "page_type" so you can see it in Postman
+                pagewise_line_items=[
+                    PageWiseItems(
+                        page_no="Error",
+                        page_type=f"FAILED: {str(e)}", 
+                        bill_items=[]
+                    )
+                ], 
+                total_item_count=0
+            )
         )
 
 if __name__ == "__main__":
